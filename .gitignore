@@ -1,4 +1,21 @@
-**.tfvars
+# Terraform (from the starter repo)
+**/.terraform/
 **.tfstate
 **.tfstate.*
-**/.terraform/
+**.tfvars
+crash.log
+
+# Go build output
+*.exe
+src/product-service
+
+# Secrets
+.env
+*.pem
+*.key
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
