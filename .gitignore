@@ -19,3 +19,5 @@ src/product-service
 .idea/
 .DS_Store
 Thumbs.db
+# Python cache
+__pycache__/
