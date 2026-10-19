@@ -2,15 +2,20 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"math"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // Product matches the Product schema in api.yaml.
@@ -151,12 +156,74 @@ func faultInjection(enabled bool) gin.HandlerFunc {
 	}
 }
 
+// RED metrics: two counters (rate and errors) and a histogram (duration).
+// promauto registers them so /metrics serves them automatically.
+var (
+	httpRequests = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "http_requests_total",
+		Help: "All HTTP requests, by method, route and status code.",
+	}, []string{"method", "route", "status"})
+
+	httpErrors = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "http_request_errors_total",
+		Help: "HTTP requests that finished with a non-2xx status code.",
+	}, []string{"method", "route", "status"})
+
+	httpDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "http_request_duration_seconds",
+		Help:    "Time the server took to handle a request, in seconds.",
+		Buckets: []float64{0.0001, 0.00025, 0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1},
+	}, []string{"method", "route"})
+)
+
+// logger writes one JSON object per line to stdout. On ECS, stdout goes to CloudWatch Logs.
+var logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+// observe times every request and records it in the metrics above.
+// It runs outside the recovery middleware, so it still sees the final 500
+// when a handler panics.
+func observe() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		route := c.FullPath() // the route template, e.g. /products/:productId
+		if route == "/metrics" {
+			c.Next() // don't count Prometheus's own scrapes
+			return
+		}
+		if route == "" {
+			route = "unmatched"
+		}
+
+		start := time.Now()
+		c.Next() // run the handler
+		elapsed := time.Since(start)
+
+		status := c.Writer.Status()
+		code := strconv.Itoa(status)
+		method := c.Request.Method
+
+		httpRequests.WithLabelValues(method, route, code).Inc()
+		if status < 200 || status > 299 {
+			httpErrors.WithLabelValues(method, route, code).Inc()
+		}
+		httpDuration.WithLabelValues(method, route).Observe(elapsed.Seconds())
+		logger.Info("request",
+			slog.String("endpoint", route),
+			slog.String("method", method),
+			slog.String("path", c.Request.URL.Path),
+			slog.Int("status", status),
+			slog.Float64("duration_ms", float64(elapsed.Nanoseconds())/1e6),
+		)
+	}
+}
+
 func main() {
 	store := newProductStore()
 	store.seed(100)
 
 	r := gin.New()
-	r.Use(gin.Logger(), gin.CustomRecovery(func(c *gin.Context, recovered any) {
+	// Prometheus reads metrics from here. Not part of api.yaml.
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	r.Use(observe(), gin.CustomRecovery(func(c *gin.Context, recovered any) {
 		// api.yaml requires an Error body on 500.
 		writeError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error", "unexpected server error")
 	}))

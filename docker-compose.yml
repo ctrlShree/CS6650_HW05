@@ -1,0 +1,25 @@
+# Local observability stack for Part V: the Product API, Prometheus and Grafana.
+# Start from the repo root with:  docker compose up --build
+services:
+  product-service:
+    build: ./src            # builds the same Dockerfile Terraform uses
+    ports:
+      - "8080:8080"
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - product-service
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    volumes:
+      - ./observability/grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
