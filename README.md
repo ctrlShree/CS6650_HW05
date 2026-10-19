@@ -143,6 +143,16 @@ Run against the ECS deployment from the `locust` folder.
 ![FastHttpUser statistics](docs/screenshots/locust-fasthttp-stats.png)
 ![FastHttpUser charts](docs/screenshots/locust-fasthttp-charts.png)
 
+**What I found.** Same settings for both runs: 100 users, no wait time, about 2 minutes against ECS.
+
+| | HttpUser | FastHttpUser |
+|---|---|---|
+| Throughput | 1,025 req/s | 1,094 req/s |
+| Median / p95 / p99 | 94 / 110 / 150 ms | 90 / 98 / 110 ms |
+| Locust CPU | about 72 to 96% of one core | about 37 to 56% of one core |
+
+FastHttpUser got slightly more throughput and a much better tail, and used about half the CPU on my laptop. The server and network were the same both times, so the difference comes from Locust itself. HttpUser is built on python-requests, which does a lot of work in plain Python for every request. FastHttpUser uses geventhttpclient, which is written for gevent and does its HTTP parsing in C. All 100 users share one Python process, so with HttpUser that core was close to full and users had to wait their turn to send and read. Locust counts that wait as response time, which is why p99 moved more than the median. The throughput gap stayed small because both runs were close to the limit set by the network: 100 users ÷ about 0.09 s round trip ≈ 1,100 req/s.
+
 **Stress test, 200 to 2,000 users in steps of 200 (`stressfile.py`, 1 master and 4 workers)**
 ![Stress test charts](docs/screenshots/locust-stress-charts.png)
 ![Stress test statistics](docs/screenshots/locust-stress-stats.png)
