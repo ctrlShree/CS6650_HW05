@@ -1,0 +1,11 @@
+﻿{"time":"2026-10-19T08:39:49.402550734Z","level":"INFO","msg":"request","endpoint":"/products/:productId","method":"GET","path":"/products/50","status":200,"duration_ms":4.107362}
+{"time":"2026-10-19T08:39:49.402530732Z","level":"INFO","msg":"request","endpoint":"/products/:productId","method":"GET","path":"/products/21","status":200,"duration_ms":4.31748}
+{"time":"2026-10-19T08:39:49.402529132Z","level":"INFO","msg":"request","endpoint":"/products/:productId","method":"GET","path":"/products/50","status":200,"duration_ms":4.343282}
+{"time":"2026-10-19T08:39:49.402529132Z","level":"INFO","msg":"request","endpoint":"/products/:productId","method":"GET","path":"/products/83","status":200,"duration_ms":3.925045}
+{"time":"2026-10-19T08:39:49.413490597Z","level":"INFO","msg":"request","endpoint":"/products/:productId/details","method":"POST","path":"/products/100/details","status":204,"duration_ms":1.981475}
+{"time":"2026-10-19T08:39:49.414820314Z","level":"INFO","msg":"request","endpoint":"/products/:productId/details","method":"POST","path":"/products/34/details","status":204,"duration_ms":2.369209}
+{"time":"2026-10-19T08:39:49.423131846Z","level":"INFO","msg":"request","endpoint":"/products/:productId/details","method":"POST","path":"/products/16/details","status":204,"duration_ms":12.207774}
+{"time":"2026-10-19T08:39:49.422760613Z","level":"INFO","msg":"request","endpoint":"/products/:productId/details","method":"POST","path":"/products/56/details","status":204,"duration_ms":23.669683}
+{"time":"2026-10-19T08:39:49.404792231Z","level":"INFO","msg":"request","endpoint":"/products/:productId","method":"GET","path":"/products/33818","status":404,"duration_ms":8.029206}
+{"time":"2026-10-19T08:39:49.414878419Z","level":"INFO","msg":"request","endpoint":"/products/:productId","method":"GET","path":"/products/24779","status":404,"duration_ms":0.333129}
+{"time":"2026-10-19T08:39:49.427416223Z","level":"INFO","msg":"request","endpoint":"/products/:productId","method":"GET","path":"/products/40493","status":404,"duration_ms":0.023902}

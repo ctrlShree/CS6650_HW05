@@ -21,3 +21,6 @@ src/product-service
 Thumbs.db
 # Python cache
 __pycache__/
+
+# Full request log dump (too big to commit)
+request-logs-full.jsonl
