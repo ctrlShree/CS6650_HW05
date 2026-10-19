@@ -1,0 +1,387 @@
+{
+  "info": {
+    "_postman_id": "3d4cee6a-9f3d-4cd8-ad7f-f4b55c02e240",
+    "name": "Product API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "59029224",
+    "_collection_link": "https://go.postman.co/collection/59029224-3d4cee6a-9f3d-4cd8-ad7f-f4b55c02e240?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "GET 200 - existing product",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "   pm.test(\"status is 200\", function () {\r\n       pm.response.to.have.status(200);\r\n   });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/products/1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products",
+            "1"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET 404 - product not found",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "   pm.test(\"status is 404\", function () {\r\n       pm.response.to.have.status(404);\r\n   });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/products/99999",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products",
+            "99999"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET 500 - simulated error",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "   pm.test(\"status is 500\", function () {\r\n       pm.response.to.have.status(500);\r\n   });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Simulate-Error",
+            "value": "500"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/products/1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products",
+            "1"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST 204 - valid  update",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "   pm.test(\"status is 204\", function () {\r\n       pm.response.to.have.status(204);\r\n   });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "   {\r\n     \"product_id\": 1,\r\n     \"sku\": \"ABC-123-XYZ\",\r\n     \"manufacturer\": \"Acme Corporation\",\r\n     \"category_id\": 456,\r\n     \"weight\": 1250,\r\n     \"some_other_id\": 789\r\n   }",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/products/1/details",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products",
+            "1",
+            "details"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST 400  - productID not a number",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "   pm.test(\"status is 400\", function () {\r\n       pm.response.to.have.status(400);\r\n   });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "   {\r\n     \"product_id\": 1,\r\n     \"sku\": \"ABC-123-XYZ\",\r\n     \"manufacturer\": \"Acme Corporation\",\r\n     \"category_id\": 456,\r\n     \"weight\": 1250,\r\n     \"some_other_id\": 789\r\n   }",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/products/abc/details",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products",
+            "abc",
+            "details"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST 400  - missing fields",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "   pm.test(\"status is 400\", function () {\r\n       pm.response.to.have.status(400);\r\n   });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"product_id\": 1, \"sku\": \"\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/products/1/details",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products",
+            "1",
+            "details"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST 400 - ID mismatch",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "   pm.test(\"status is 400\", function () {\r\n       pm.response.to.have.status(400);\r\n   });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "   {\r\n     \"product_id\": 1,\r\n     \"sku\": \"ABC-123-XYZ\",\r\n     \"manufacturer\": \"Acme Corporation\",\r\n     \"category_id\": 456,\r\n     \"weight\": 1250,\r\n     \"some_other_id\": 789\r\n   }",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/products/2/details",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products",
+            "2",
+            "details"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST 400 - broken JSON",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "   pm.test(\"status is 400\", function () {\r\n       pm.response.to.have.status(400);\r\n   });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"product_id\": 1,",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/products/1/details",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products",
+            "1",
+            "details"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST 404 - product not found",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "   pm.test(\"status is 404\", function () {\r\n       pm.response.to.have.status(404);\r\n   });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "   {\r\n     \"product_id\": 99999,\r\n     \"sku\": \"ABC-123-XYZ\",\r\n     \"manufacturer\": \"Acme Corporation\",\r\n     \"category_id\": 456,\r\n     \"weight\": 1250,\r\n     \"some_other_id\": 789\r\n   }",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/products/99999/details",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products",
+            "99999",
+            "details"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST 500 - simulated error",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "   pm.test(\"status is 500\", function () {\r\n       pm.response.to.have.status(500);\r\n   });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Simulate-Error",
+            "value": "500"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "   {\r\n     \"product_id\": 1,\r\n     \"sku\": \"ABC-123-XYZ\",\r\n     \"manufacturer\": \"Acme Corporation\",\r\n     \"category_id\": 456,\r\n     \"weight\": 1250,\r\n     \"some_other_id\": 789\r\n   }",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/products/1/details",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products",
+            "1",
+            "details"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    }
+  ]
+}
