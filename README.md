@@ -20,6 +20,9 @@ This repo is a fork of the starter repo `RuidiH/CS6650_2b_demo`. I replaced its 
 │   ├── main.tf               connects the modules, builds and pushes the image
 │   ├── outputs.tf            cluster and service names
 │   └── modules/              network, ecr, logging, ecs
+├── locust/                   load tests
+│   ├── locustfile.py         request mix, HttpUser and FastHttpUser classes
+│   └── stressfile.py         step-load stress test
 ├── requests/                 JSON bodies used with curl
 ├── postman/                  exported Postman collection
 └── docs/screenshots/         screenshots for every part
@@ -413,3 +416,118 @@ The container's own logs show every status code arriving:
 ![Runner, go run, part 2](docs/screenshots/postman-runner-go-run-2.png)
 
 In the `go run` run, `GET 200` returns the original `SKU-000001`, while the Docker run returned the updated `ABC-123-XYZ`. The data only lives in memory, so a freshly started server begins again with the seeded products.
+
+## Load testing with Locust
+
+All tests ran from my laptop (Intel i5-10300H, 4 cores, 8 logical processors) against the ECS task in us-west-2. The task has 256 CPU units, a quarter of one vCPU.
+
+### Running the tests
+
+Install Locust with `pip install locust`. From the `locust` folder:
+
+```powershell
+# web UI on http://localhost:8089; pick the user class at the end
+locust -f locustfile.py --host http://<PUBLIC-IP>:8080 ProductHttpUser
+locust -f locustfile.py --host http://<PUBLIC-IP>:8080 ProductFastHttpUser
+```
+
+The stress test needs more than one Locust process so the laptop doesn't become the limit. On Windows Locust can't start workers itself, so open one terminal for the master and one per worker:
+
+```powershell
+# terminal 1
+locust -f stressfile.py --master --host http://<PUBLIC-IP>:8080 ProductFastHttpUser
+
+# terminals 2 to 5, one worker each
+locust -f stressfile.py --worker ProductFastHttpUser
+```
+
+Open http://localhost:8089, check it shows 4 workers, and click Start. The step shape in `stressfile.py` controls the user count, so the numbers typed into the UI are ignored.
+
+### Test design
+
+| Setting | Value | Why |
+|---|---|---|
+| Request mix | 80% GET an existing product, 15% POST new details, 5% GET a product that doesn't exist | A store is read far more than it's edited. The 404s are expected and marked as successes, so the failure column only shows real problems. |
+| Product IDs | random, 1 to 100 | The server seeds products 1 to 100, and POST returns 404 for anything else |
+| Wait time | none | Each user sends its next request as soon as the last one returns, which puts the most pressure on the server |
+| Comparison runs | 100 users, spawn rate 10/s, about 2 minutes each | Enough load to see a difference between the clients, same settings for both |
+| Stress run | start at 200 users, add 200 every 45 s, stop at 2,000 (`stressfile.py`) | Small enough steps to see where throughput stops rising |
+| Stress client | FastHttpUser, 1 master and 4 workers | Keeps my laptop out of the way so the server is what gets tested |
+
+With no wait time, throughput is about users ÷ response time. That gives a quick check on every run: if the measured req/s falls well below that number, something is queuing.
+
+### HttpUser vs FastHttpUser
+
+| | HttpUser | FastHttpUser |
+|---|---|---|
+| Requests | 116,059 | 126,629 |
+| Throughput | 1,025 req/s | 1,094 req/s |
+| Median | 94 ms | 90 ms |
+| p95 | 110 ms | 98 ms |
+| p99 | 150 ms | 110 ms |
+| Failures | 0 | 0 |
+| Locust CPU in Task Manager | 9 to 12% of the machine, about 72 to 96% of one core | 4.6 to 7%, about 37 to 56% of one core |
+| Server CPU (ECS) | ~55% | ~57% |
+
+**HttpUser**
+
+![HttpUser statistics](docs/screenshots/locust-http-stats.png)
+![HttpUser charts](docs/screenshots/locust-http-charts.png)
+
+**FastHttpUser**
+
+![FastHttpUser statistics](docs/screenshots/locust-fasthttp-stats.png)
+![FastHttpUser charts](docs/screenshots/locust-fasthttp-charts.png)
+
+There was a difference. FastHttpUser got 7% more throughput, cut p99 latency by 40 ms, and used about half as much CPU on my laptop. The server and network were the same both times, so the difference comes from Locust.
+
+HttpUser is built on python-requests, which does a lot of work in plain Python for every request: building a request object, merging headers and cookies, running hooks, going through urllib3's connection pool. FastHttpUser uses geventhttpclient, which is written for gevent (the library Locust uses to run many users in one process) and does its HTTP parsing in C. Same requests, less work per request.
+
+That matters because all 100 users share one Python process, which mostly runs on one core. With HttpUser that core was close to full, so users waited their turn to send a request and to read the reply. Locust's timer is running during that wait, so the delay shows up as response time, mostly in the slowest requests. That's why p99 moved much more than the median.
+
+The throughput gap was small because both runs were close to the limit set by the network. The round trip to Oregon is about 85 ms, and 100 users ÷ 0.09 s ≈ 1,100 req/s, which is about what both clients reached. At higher load HttpUser would hit its CPU limit first, and Locust would report a slower server even if the server were fine. Checking the load generator's CPU is the only way to tell the two apart.
+
+### Stress test
+
+![Stress test charts](docs/screenshots/locust-stress-charts.png)
+![Stress test statistics](docs/screenshots/locust-stress-stats.png)
+
+1,600,763 requests, 0 failures:
+
+![Stress test failures, none](docs/screenshots/locust-stress-failures.png)
+
+| Users | Throughput | users ÷ 0.09 s | Median latency | What was happening |
+|---|---|---|---|---|
+| 200 | ~2,200 req/s | 2,222 | ~90 ms | Keeping up. Server CPU already near 100%. |
+| 400 | ~3,400 req/s | 4,444 | ~100 ms | Falling short. Requests start waiting. |
+| 600 | ~3,700 req/s | 6,666 | ~170 ms | Flat from here on |
+| 600 to 2,000 | 3,700 to 4,000 req/s | up to 22,000 | ~170 rising to ~500 ms | More users only add waiting time |
+
+The server's CPU in CloudWatch, at 1-minute resolution (times in UTC, 4 hours ahead of my local time):
+
+![ECS CPU utilization](docs/screenshots/ecs-cpu-stress.png)
+
+The two bumps at about 55% are the 100-user comparison runs. The flat block at 100% from 07:08 to 07:16 is the stress test.
+
+My laptop stayed well below its limit during the stress test. Each worker used about 40% of a core, and total CPU peaked around 84% without staying at 100%:
+
+![Locust workers in Task Manager](docs/screenshots/stress-taskmanager-processes.png)
+![Laptop CPU during the stress test](docs/screenshots/stress-taskmanager-cpu.png)
+
+### Where the server started to struggle
+
+The server's CPU was already full at the first step, 200 users and about 2,200 req/s. That fits the comparison runs, where 1,100 req/s used about 55%. Latency still looked normal at that point because requests weren't waiting long yet.
+
+From 400 users it started to show. Throughput fell below what the user count should produce and latency began to climb. From 600 users on, throughput stayed flat at 3,700 to 4,000 req/s whatever the user count, and the median went from about 170 ms to about 500 ms. At 2,000 users and 3,750 req/s each request should take about 2,000 ÷ 3,750 ≈ 0.53 s, which matches the measured latency. The extra time is queueing.
+
+Throughput still rose a bit after the CPU hit 100%. The likely reason is that a busy server does more work per unit of CPU: with requests waiting, Go handles several each time it wakes up, so less time goes into switching between connections. That runs out at around 4,000 req/s on a quarter of a vCPU.
+
+There were no failures because nothing ever refused a request. Go keeps accepting connections and works through the queue, and Locust had no timeout, so slow requests still counted as successes. A client with a 500 ms timeout would have started getting errors at around 1,600 users.
+
+The CPU went to the usual per-request work: parsing HTTP, routing, encoding JSON, and Gin's log line, which ECS ships to CloudWatch for every request. At 3,700 req/s that's 3,700 log lines a second, which isn't free.
+
+### Tradeoffs
+
+**Which operations are most common, and what does that mean for the data structure?** Reads. People look at products much more often than anyone changes them, which is why the test is 80% GET. The map gives a lookup by ID in constant time, and the `sync.RWMutex` lets any number of GETs read at once. Only a POST takes the exclusive lock, and it holds it for microseconds. In the stress test about 560 POSTs a second went through and the lock never showed up as a problem, because the CPU ran out first.
+
+If writes became common, the single lock would turn into the bottleneck, and I'd split the map into shards with a lock each. If the store needed lookups by SKU or category, the map would need a second index, since it only knows IDs. And because everything is in memory, a task restart loses every update, and two ECS tasks would each have their own separate copy. Scaling out would need a shared database or cache.
